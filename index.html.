@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, user-scalable=no" />
+  <title>Temple Run 2D</title>
+  <style>
+    body, html { margin:0; padding:0; overflow:hidden; }
+    canvas { display:block; background:#87CEEB; }
+    #hud { position:absolute; top:10px; left:10px; color:#fff; font:20px sans-serif; z-index:10; }
+  </style>
+</head>
+<body>
+<div id="hud">Coins: 0 | Level: 1</div>
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let gameState = 'intro'; // intro -> running
+let frame = 0;
+let coins = 0;
+let level = 1;
+
+// Placeholder character colors
+const characters = ['red', 'green', 'blue'];
+let charIndex = 0;
+
+let player = { x:canvas.width/2, y: canvas.height-150, w:50, h:50 };
+let obstacles = [], trees = [], coinsArr = [];
+
+// touch control direction
+let direction = null;
+
+function intro() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = "#000";
+  ctx.font = "40px sans-serif";
+  ctx.fillText("Temple Run 2D", canvas.width/2-150, canvas.height/2);
+  if(frame++ > 150) gameState = 'running';
+}
+
+function spawnObstacle(){
+  obstacles.push({ x:canvas.width, y:canvas.height-100, w:40, h:40, color:'brown' });
+}
+function spawnCoin(){
+  coinsArr.push({ x:canvas.width, y:canvas.height-150 - Math.random()*100, r:15 });
+}
+function spawnTree(side){
+  trees.push({ x:side===0?canvas.width:0, y:canvas.height-120, w:50, h:120, side });
+}
+
+function update(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // background scroll: trees
+  if(frame % 60 === 0) spawnTree(Math.random()<0.5?0:1);
+  trees.forEach((t,i)=>{
+    t.x += t.side===0?-3:3;
+    ctx.fillStyle = t.side===0?'#228B22':'#32CD32';
+    ctx.fillRect(t.x, t.y, t.w, t.h);
+    if(t.side===0 && t.x+ t.w < 0 || t.side===1 && t.x > canvas.width) trees.splice(i,1);
+  });
+
+  // obstacles & coins
+  if(frame % 120 === 0) spawnObstacle();
+  if(frame % 100 ===0) spawnCoin();
+
+  obstacles.forEach((o,i)=>{
+    o.x -= 4;
+    ctx.fillStyle = o.color;
+    ctx.fillRect(o.x,o.y,o.w,o.h);
+    if(o.x+o.w<0) obstacles.splice(i,1);
+    if(player.x < o.x+o.w && player.x+player.w > o.x &&
+       player.y < o.y+o.h && player.y+player.h > o.y){
+       alert("Game Over! Coins: "+coins);
+       document.location.reload();
+    }
+  });
+
+  coinsArr.forEach((c,i)=>{
+    c.x -= 4;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r,0,2*Math.PI);
+    ctx.fillStyle = "gold"; ctx.fill();
+    if(Math.hypot(player.x + player.w/2 - c.x, player.y + player.h/2 - c.y) < c.r + player.w/2){
+      coins++; coinsArr.splice(i,1);
+      if(coins % 5 === 0){ level++; charIndex = Math.min(charIndex+1, characters.length-1); }
+      document.getElementById('hud').textContent = `Coins: ${coins} | Level: ${level}`;
+    }
+  });
+
+  // draw player
+  ctx.fillStyle = characters[charIndex];
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+
+  // touch movement
+  if(direction==='left') player.x -= 5;
+  if(direction==='right') player.x += 5;
+
+  player.x = Math.max(0, Math.min(canvas.width-player.w, player.x));
+
+  frame++;
+}
+
+function gameLoop(){
+  if(gameState==='intro') intro();
+  else update();
+  requestAnimationFrame(gameLoop);
+}
+
+// touch controls listener
+canvas.addEventListener('touchstart', handleTouch);
+function handleTouch(e){
+  let x = e.touches[0].clientX;
+  direction = x < canvas.width/3 ? 'left' : x > 2*canvas.width/3 ? 'right' : null;
+  setTimeout(()=>direction=null, 200);
+  e.preventDefault();
+}
+
+gameLoop();
+</script>
+</body>
+</html>
